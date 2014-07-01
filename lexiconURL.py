@@ -35,10 +35,10 @@ urls = re.findall('<a href="(http://[^"]+)"', linksPage)
 countErrorSites = {"failUrl":[], "noneAnnoucement":[], "failAnnoucements":[]}
 
 ##### loop all the http:// links within linksPage
-for i in range(len(urls)-222):
+for i in range(len(urls)-235):
 	print "\n##### %d site #####" % i
 
-	url = urls[i+222]
+	url = urls[i]
 	
 	while url[-1] == '/':
 		url = url[:-1] ##### get rid of the '/' at the end of url
@@ -87,7 +87,7 @@ for i in range(len(urls)-222):
 	print hrefsPdf
 	##### keep record of links of pdfs in urls
 	if len(hrefsPdf) > 0:
-		f = open('links of pdfs in urls.txt', 'a+')
+		f = open('files/linksOfPdfsInURLs.txt', 'a+')
 		f.write(url+":\n")
 		for hrefPdf in hrefsPdf:
 			f.write(hrefPdf+"\n")
@@ -97,7 +97,7 @@ for i in range(len(urls)-222):
 	reports = []
 	for hrefP in hrefsPdf:
 		# if re.findall('(?:A|a)nnual', hrefP):
-		if re.findall('(?i)preliminary[\w\W]?economic[\w\W]?assessment|(?i)scope|(?i)technical', hrefP):
+		if re.findall('(?i)preliminary[\w\W]?economic[\w\W]?assessment|(?i)scope|(?i)technical|annual', hrefP):
 			if not re.findall('http://', hrefP):
 				while(hrefP[0] == '/'):
 					hrefP = hrefP[1:]
@@ -108,10 +108,17 @@ for i in range(len(urls)-222):
 	print reports
 
 	if len(reports) > 0:
+
+		def callbackfunc(blocknum, blocksize, totalsize):
+		    percent = 100.0 * blocknum * blocksize / totalsize
+		    if percent > 100:
+		    	percent = 100
+		    print "%.2f%%"% percent
+
 		print "downloading reports....."
 		j = 0
 		for report in reports:
-			nameReport = report.split('/')[-1]
-			urllib.urlretrieve(report, nameReport)
+			nameReport = "files/"+report.split('/')[-1]
+			urllib.urlretrieve(report, nameReport, callbackfunc)
 			j += 1
 			print "%d pdf downloaded" % j
