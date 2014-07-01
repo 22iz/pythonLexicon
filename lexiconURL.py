@@ -35,10 +35,10 @@ urls = re.findall('<a href="(http://[^"]+)"', linksPage)
 countErrorSites = {"failUrl":[], "noneAnnoucement":[], "failAnnoucements":[]}
 
 ##### loop all the http:// links within linksPage
-for i in range(len(urls)-235):
+for i in range(len(urls)-11):
 	print "\n##### %d site #####" % i
 
-	url = urls[i]
+	url = urls[i+11]
 	
 	while url[-1] == '/':
 		url = url[:-1] ##### get rid of the '/' at the end of url
@@ -55,70 +55,90 @@ for i in range(len(urls)-235):
 		sourceHome = urlopen(url).read()
 
 	hrefsHome = re.findall('<a href="([^"]+)"', sourceHome)
+	urlAnnounces = []
 	for hrefA in hrefsHome:                                                                                     
-		if re.findall('(?i)announcement', hrefA):
-			urlAnnounce = hrefA
+		if re.findall('(?i)announcement', hrefA): ########## need to check whether it is a website link
+			if hrefA[-4:] != '.pdf':
+				if hrefA not in urlAnnounces:
+					urlAnnounces.append(hrefA)
 
-	try:
-		urlAnnounce
-	except NameError:
+	if len(urlAnnounces) <= 0:
 		print "----- no annoucement page -----"
 		countErrorSites['noneAnnoucement'].append(url)
 		continue
 	else:
-		if not re.findall('http://', urlAnnounce):
-		        while(urlAnnounce[0] == '/'):
-		                urlAnnounce = urlAnnounce[1:] ##### get rid of all '/'s at the end of announcement url 
-		        urlAnnounce = url+'/'+urlAnnounce
-		print urlAnnounce
-                        
+		# try:
+		# 	urlAnnounce
+		# except NameError:
+		# 	print "----- no annoucement page -----"
+		# 	countErrorSites['noneAnnoucement'].append(url)
+		# 	continue
+		# else:
+		for urlAnnounce in urlAnnounces:
+			if not re.findall('http://', urlAnnounce):
+			        while(urlAnnounce[0] == '/'):
+			                urlAnnounce = urlAnnounce[1:] ##### get rid of all '/'s at the end of announcement url 
+			        urlAnnounce = url+'/'+urlAnnounce
+			print urlAnnounce
+	                        
+			try:
+				urlopen(urlAnnounce).read()
+			except IOError:
+				print "----- cannot read annoucement page -----"
+				countErrorSites['failAnnoucements'].append(url)
+				continue
+			else:
+				sourceAnnounce = urlopen(urlAnnounce).read()
 
-	try:
-		urlopen(urlAnnounce).read()
-	except IOError:
-		print "----- cannot read annoucement page -----"
-		countErrorSites['failAnnoucements'].append(url)
-		continue
-	else:
-		sourceAnnounce = urlopen(urlAnnounce).read()
+			hrefsPdf = re.findall('<a href="([^"]+.pdf)"', sourceAnnounce)
+			print "pdfs on announcement page:"
+			print hrefsPdf
+			##### keep record of links of pdfs in urls
+			if len(hrefsPdf) > 0:
+				f = open('files/linksOfPdfsInURLs.txt', 'a+')
+				f.write(url+":\n")
+				for hrefPdf in hrefsPdf:
+					f.write(hrefPdf+"\n")
+				f.write("\n\n")
+				f.close()
 
-	hrefsPdf = re.findall('<a href="([^"]+.pdf)"', sourceAnnounce)
-	print "pdfs on announcement page:"
-	print hrefsPdf
-	##### keep record of links of pdfs in urls
-	if len(hrefsPdf) > 0:
-		f = open('files/linksOfPdfsInURLs.txt', 'a+')
-		f.write(url+":\n")
-		for hrefPdf in hrefsPdf:
-			f.write(hrefPdf+"\n")
-		f.write("\n\n")
-		f.close()
+			reports = []
+			for hrefP in hrefsPdf:
+				# if re.findall('(?:A|a)nnual', hrefP):
+				if re.findall('(?i)preliminary[\w\W]?economic[\w\W]?assessment|(?i)scope|(?i)technical', hrefP):
+					if not re.findall('http://', hrefP):
+						while(hrefP[0] == '/'):
+							hrefP = hrefP[1:]
+						hrefP = url+'/'+hrefP
+					if hrefP not in reports:
+						reports.append(hrefP)
+			print "!!!!!List of useful reports:"
+			print reports
 
-	reports = []
-	for hrefP in hrefsPdf:
-		# if re.findall('(?:A|a)nnual', hrefP):
-		if re.findall('(?i)preliminary[\w\W]?economic[\w\W]?assessment|(?i)scope|(?i)technical|annual', hrefP):
-			if not re.findall('http://', hrefP):
-				while(hrefP[0] == '/'):
-					hrefP = hrefP[1:]
-				hrefP = url+'/'+hrefP
-			if hrefP not in reports:
-				reports.append(hrefP)
-	print "!!!!!List of useful reports:"
-	print reports
+			if len(reports) > 0:
 
-	if len(reports) > 0:
+				def callbackfunc(blocknum, blocksize, totalsize):
+				    percent = 100.0 * blocknum * blocksize / totalsize
+				    if percent > 100:
+				    	percent = 100
+				    print "%.2f%%"% percent
 
-		def callbackfunc(blocknum, blocksize, totalsize):
-		    percent = 100.0 * blocknum * blocksize / totalsize
-		    if percent > 100:
-		    	percent = 100
-		    print "%.2f%%"% percent
+				print "downloading reports....."
+				j = 0
+				for report in reports:
+					nameReport = "files/"+report.split('/')[-1]
+					urllib.urlretrieve(report, nameReport, callbackfunc)
+					j += 1
+					print "%d pdf downloaded" % j
 
-		print "downloading reports....."
-		j = 0
-		for report in reports:
-			nameReport = "files/"+report.split('/')[-1]
-			urllib.urlretrieve(report, nameReport, callbackfunc)
-			j += 1
-			print "%d pdf downloaded" % j
+f = open("files/countErrorSites.txt", "a+")
+
+f.write("failUrls:\n")
+for failU in countErrorSites['failUrl']:
+	f.write(failU+"\n")
+f.write("\n\nnoneAnnoucement:\n")
+for noneA in countErrorSites['noneAnnoucement']:
+	f.write(noneA+"\n")
+f.write("\n\nfailAnnoucements:\n")
+for failA in countErrorSites['failAnnoucements']:
+	f.write(failA+"\n")
